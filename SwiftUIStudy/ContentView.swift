@@ -7,18 +7,37 @@
 
 import SwiftUI
 
+
 struct ContentView: View {
+    
+    @StateObject var router = FullScreenRouter()
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack(path: $router.path) {
+            VStack {
+                Image(systemName: "globe")
+                    .imageScale(.large)
+                    .foregroundStyle(.tint)
+                
+                Text("Hello, world!")
+                    .padding()
+                
+                Button{
+                    router.push(.textEditor)
+                } label: {
+                    Text("textEditor view")
+                }
+                
+            }
+            .navigationDestination(for: AppRoute.self) { route in
+                switch route {
+                case .textEditor:
+                    TestTextEditorView()
+                }
+                
+            }
         }
-        .padding()
+        .environmentObject(router)
     }
 }
 
-#Preview {
-    ContentView()
-}
