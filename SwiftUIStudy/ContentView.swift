@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-
 struct ContentView: View {
     
     @StateObject var router = FullScreenRouter()
@@ -15,19 +14,17 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $router.path) {
             VStack {
-                Image(systemName: "globe")
-                    .imageScale(.large)
-                    .foregroundStyle(.tint)
-                
-                Text("Hello, world!")
-                    .padding()
-                
-                Button{
-                    router.push(.textEditor)
-                } label: {
-                    Text("textEditor view")
+                Text("LIM Study Diary")
+                    .font(.headline)
+                    .padding(5)
+                List{
+                    Button{
+                        router.push(.textEditor)
+                    } label: {
+                        Text("8M 2W")
+                    }
                 }
-                
+                .foregroundStyle(.black)
             }
             .navigationDestination(for: AppRoute.self) { route in
                 switch route {
