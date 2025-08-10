@@ -156,3 +156,91 @@ logger.logLevel = .info
     - 초기만 attributedText로 세팅, 그 이후는 절대 uiView.text = ... 하지 않음.
 
 textViewDidChange에서 평문만 바인딩에 반영(첨부는 별도 직렬화 대상).
+
+---
+
+### CustomTextController
+
+**흐름 요약 (한 문단에서 버튼을 누르면 무슨 일이?)**
+
+1. 버튼 → insertOrToggle(target) 호출
+
+2. 커서 위치의 문단 범위를 구함
+
+3. 문단 시작에 마커가 있으면
+
+    - 같은 종류 버튼이면 → 마커 삭제(토글 OFF)
+
+    - 다른 종류 버튼이면 → 마커의 이미지/종류만 교체
+
+4. 문단 시작에 마커가 없으면
+
+    - [첨부 + 공백] 세트를 문단 시작에 삽입
+
+5. 매번 커서 위치/typingAttributes 보정(아이콘 주변에서 폰트가 바뀌는 것 방지)
+
+---
+
+### Enter Custom
+
+```swift
+func textView(_ tv: UITextView,
+                shouldChangeTextIn range: NSRange,
+                replacementText text: String) -> Bool
+{
+    guard text == "\n" else { return true } // 엔터만 커스터마이즈
+```
+
+Coordinator 내부에 TextView delegate를 이용.
+
+---
+
+### Text Click
+
+TextEditor에서 글자 클릭시 단어 전체가 선택되는 이슈.
+
+**싱글탭 / 더블 탭 이슈.**
+
+```swift
+// 체크 토글용 탭 제스처
+let tap = UITapGestureRecognizer(target: context.coordinator,
+                                    action: #selector(context.coordinator.handleTap(_:)))
+tap.delegate = context.coordinator   // 델리게이트 설정
+tap.cancelsTouchesInView = false     // 기본 커서 이동/선택을 막지 않음
+tap.delaysTouchesBegan = false
+textView.addGestureRecognizer(tap)
+
+// 2) 싱글탭: 커서 강제 이동 (마커가 아닌 영역 전용)
+let textTap = UITapGestureRecognizer(target: context.coordinator,
+                                        action: #selector(context.coordinator.forceCaretTap(_:)))
+textTap.delegate = context.coordinator
+textTap.cancelsTouchesInView = false
+textTap.delaysTouchesBegan = false
+textView.addGestureRecognizer(textTap)
+
+// 시스템 더블/트리플탭(단어/문단 선택)보다 '나중'에 인식되도록 실패를 요구
+for gr in textView.gestureRecognizers ?? [] {
+    if let tgr = gr as? UITapGestureRecognizer,
+        tgr !== textTap, tgr.numberOfTapsRequired > 1 {
+        textTap.require(toFail: tgr)
+    }
+}
+
+// 커서 우선: markerTap은 마커에서만, textTap은 나머지에서만
+context.coordinator.markerTap = tap
+context.coordinator.textTap = textTap
+
+// 링크 자동탐지로 단어 선택이 과해지는 걸 줄이고 싶다면
+textView.dataDetectorTypes = []
+
+// 컨트롤러에서 실제 UITextView 접근 가능하도록 연결
+controller.textView = textView
+return textView
+```
+
+탭 이벤트를 두개로 나눠서 이미지를 탭했을 때 or 글자를 탭했을때
+
+두가지로 나눠서 이벤트를 추가합니다.
+
+
+
