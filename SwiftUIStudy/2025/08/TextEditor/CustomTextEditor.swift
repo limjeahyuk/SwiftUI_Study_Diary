@@ -13,6 +13,7 @@ struct CustomTextEditorView: UIViewRepresentable {
     @Binding var isFocused: Bool
     @ObservedObject var controller: CustomTextEditorController
 
+    // MARK: - makeUIView
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
         textView.delegate = context.coordinator
@@ -62,11 +63,14 @@ struct CustomTextEditorView: UIViewRepresentable {
         // 링크 자동탐지로 단어 선택이 과해지는 걸 줄이고 싶다면
         textView.dataDetectorTypes = []
         
+//        textView.controller = controller
+        
         // 컨트롤러에서 실제 UITextView 접근 가능하도록 연결
         controller.textView = textView
         return textView
     }
 
+    // MARK: - updateUIView
     func updateUIView(_ uiView: UITextView, context: Context) {
         // 여기서 uiView.text = text 를 하면 첨부가 날아감
         if isFocused, !uiView.isFirstResponder { uiView.becomeFirstResponder() }
@@ -74,6 +78,7 @@ struct CustomTextEditorView: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
+    // MARK: - Coordinator
     class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
         weak var markerTap: UITapGestureRecognizer?
         weak var textTap: UITapGestureRecognizer?
@@ -100,6 +105,9 @@ struct CustomTextEditorView: UIViewRepresentable {
         
         // ✅ 캐럿/선택 변경 시, 마커 위/앞에 걸리면 마커 뒤로 스냅
         func textViewDidChangeSelection(_ tv: UITextView) {
+            // 한글 조합중이면 손대지 않음.
+            if tv.markedTextRange != nil { return }
+            
             // 드래그로 범위 선택 중이면 손대지 않음
             guard tv.selectedRange.length == 0 else { return }
 
@@ -120,6 +128,12 @@ struct CustomTextEditorView: UIViewRepresentable {
         func textViewDidChange(_ textView: UITextView) {
             // 바인딩 text는 "순수 텍스트"만 동기화 (첨부는 별도 보관/직렬화 대상)
             parent.text = textView.text
+            
+            if textView.textStorage.length == 0 {
+                let f = currentFont(textView)
+                // 빈 문서일 때도 다음 입력이 항상 같은 폰트가 되도록 고정
+                textView.typingAttributes = [.font: f]
+            }
         }
         
         // 제스처 분기: 마커면 markerTap만, 아니면 textTap만
@@ -147,7 +161,8 @@ struct CustomTextEditorView: UIViewRepresentable {
             return false
         }
         
-        // ⬇️ 체크 아이콘 토글
+        // MARK: - handle Tap
+        // 체크 아이콘 토글
         @objc func handleTap(_ gr: UITapGestureRecognizer) {
             guard let tv = gr.view as? UITextView, gr.state == .ended else { return }
             let viewPt = gr.location(in: tv)
@@ -267,7 +282,7 @@ struct CustomTextEditorView: UIViewRepresentable {
         private func markerLength(_ tv: UITextView, paragraphRange: NSRange) -> Int {
             let length = tv.textStorage.length
             let start = paragraphRange.location
-            guard start < length else { return 0 }   // ⬅️ 빈 문자열/끝 인덱스 방어
+            guard start < length else { return 0 }   // 빈 문자열/끝 인덱스 방어
 
             var len = 0
             if tv.attributedText.attribute(.attachment, at: start, effectiveRange: nil) != nil {
@@ -282,6 +297,20 @@ struct CustomTextEditorView: UIViewRepresentable {
             return len
         }
         
+        func someEditHandler(_ tv: UITextView) {
+            // ... 편집 수행
+            if tv.markedTextRange == nil {
+                tv.typingAttributes = [.font: currentFont(tv)]
+            } else {
+                // 조합이 끝난 뒤 살짝 지연해서 고정 (선택)
+                DispatchQueue.main.async {
+                    if tv.markedTextRange == nil {
+                        tv.typingAttributes = [.font: self.currentFont(tv)]
+                    }
+                }
+            }
+        }
+        
         func substring(in tv: UITextView, range: NSRange) -> String? {
             let len = tv.textStorage.length
             guard range.location >= 0,
@@ -291,13 +320,103 @@ struct CustomTextEditorView: UIViewRepresentable {
             return s.substring(with: range)
         }
         
-        
         // MARK: - keyBoard 동작 커마
         // 엔터 동작 커스터마이즈
         func textView(_ tv: UITextView,
                       shouldChangeTextIn range: NSRange,
                       replacementText text: String) -> Bool
         {
+            
+            if tv.markedTextRange != nil { return true }
+            
+            if tv.textStorage.length == 0,
+               range.location == 0,
+               range.length == 0,
+               !text.isEmpty {
+                return true
+            }
+            
+            // 🔙 Backspace로 리스트 마커(첨부+공백)를 한 번에 삭제
+            if text.isEmpty, range.length == 1, tv.textStorage.length > 0 {
+                let len = tv.textStorage.length
+                let delLoc = min(max(0, range.location), max(0, len - 1)) // 안전 클램프
+
+                // delLoc 기준 문단/마커 정보
+                let para = paragraphRange(in: tv, at: delLoc)
+                let mlen = markerLength(tv, paragraphRange: para) // 보통 2(첨부1+공백1), 예외 1 가능
+                if mlen > 0 {
+                    let markerStart = para.location
+                    let markerEnd   = markerStart + mlen
+
+                    // 커서가 "마커 바로 뒤"(= 공백 지점)에서 Backspace 친 케이스
+                    // Backspace의 range.location은 "삭제될 글자 위치" = 커서-1
+                    // 커서가 markerEnd였으면 range.location == markerEnd-1 이다.
+                    if range.location == markerEnd - 1 {
+                        let f = currentFont(tv)
+
+                        tv.textStorage.beginEditing()
+                        tv.textStorage.deleteCharacters(in: NSRange(location: markerStart, length: mlen))
+                        tv.textStorage.endEditing()
+
+                        // 커서는 문단 시작으로, 다음 입력 폰트 고정
+                        tv.selectedRange = NSRange(location: markerStart, length: 0)
+                        tv.typingAttributes = [.font: f]
+                        return false
+                    }
+                }
+            }
+            
+            // 🔒 이 변경의 결과 전체 길이가 0이 되는가?
+           let curLen = tv.textStorage.length
+           let incoming = (text as NSString).length
+           let willBeEmpty = (curLen - range.length + incoming) == 0
+
+           if willBeEmpty {
+               let f = currentFont(tv) // tv.font ?? typingAttributes[..] ?? system 18
+               tv.textStorage.beginEditing()
+               // 빈 문서여도 "기본 폰트 속성"을 보존
+               tv.textStorage.setAttributedString(
+                   NSAttributedString(string: "", attributes: [.font: f])
+               )
+               tv.textStorage.endEditing()
+
+               tv.selectedRange = NSRange(location: 0, length: 0)
+               tv.typingAttributes = [.font: f]   // 다음 입력 폰트 고정
+               return false
+           }
+        
+            // A. "전체 선택"이 잡힌 상태에서 삭제(= text.isEmpty)
+            if text.isEmpty, range.length > 0 {
+                let len = tv.textStorage.length
+                // 전체 범위가 선택되어 있거나, 이 변경으로 빈 문서가 되는 케이스
+                if range.location == 0 && range.length >= len {
+                    let f = currentFont(tv)
+                    tv.textStorage.beginEditing()
+                    // 빈 문자열이더라도 '기본 폰트 속성'을 가진 빈 attributedText로 세팅
+                    tv.textStorage.setAttributedString(
+                        NSAttributedString(string: "", attributes: [.font: f])
+                    )
+                    tv.textStorage.endEditing()
+
+                    tv.selectedRange = NSRange(location: 0, length: 0)
+                    tv.typingAttributes = [.font: f]  // 다음 입력 폰트 고정
+                    return false
+                }
+            }
+
+            // B. "전체 선택" 상태에서 바로 새 글자를 입력(치환)하는 경우도 폰트 보장
+            if !text.isEmpty, range.location == 0, range.length >= tv.textStorage.length {
+                let f = currentFont(tv)
+                tv.textStorage.beginEditing()
+                tv.textStorage.setAttributedString(
+                    NSAttributedString(string: text, attributes: [.font: f])
+                )
+                tv.textStorage.endEditing()
+                tv.selectedRange = NSRange(location: (text as NSString).length, length: 0)
+                tv.typingAttributes = [.font: f]
+                return false
+            }
+            
             guard text == "\n" else { return true } // 엔터만 커스터마이즈
 
             let len = tv.textStorage.length
@@ -331,15 +450,23 @@ struct CustomTextEditorView: UIViewRepresentable {
                 // 마커 삭제
                 let delLen = min(mlen, max(0, len - para.location))
                 ms.deleteCharacters(in: NSRange(location: para.location, length: delLen))
-
-                // 개행을 "현재 입력 위치 - 삭제만큼"에 삽입
-                let insertLoc = max(0, min(safeLoc - delLen, ms.length))
-                ms.replaceCharacters(in: NSRange(location: insertLoc, length: 0),
-                                     with: NSAttributedString(string: "\n", attributes: [.font: f]))
+                
                 ms.endEditing()
 
-                tv.selectedRange = NSRange(location: insertLoc + 1, length: 0)
-                tv.typingAttributes = [.font: f]
+                
+                // ✅ 문서가 비었으면 기본 폰트 속성을 가진 '빈 attributedText'로 만들어둠
+                if tv.textStorage.length == 0 {
+                    let f = currentFont(tv)
+                    tv.textStorage.setAttributedString(NSAttributedString(string: "", attributes: [.font: f]))
+                    tv.typingAttributes = [.font: f]
+                } else {
+                    tv.typingAttributes = [.font: f]
+                }
+
+                // ✅ 커서는 그 줄의 시작(마커 자리)로
+                tv.selectedRange = NSRange(location: para.location, length: 0)
+
+                // ✅ 시스템 기본 엔터(개행)를 막아야 줄이 그대로 유지됩니다
                 return false
             } else {
                 // (B) 내용 있는 리스트 줄: 다음 줄에 동일 마커 자동 생성

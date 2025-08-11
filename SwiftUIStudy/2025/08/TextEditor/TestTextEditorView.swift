@@ -14,6 +14,8 @@ struct TestTextEditorView: View {
     @State private var isFocused: Bool = false
     @StateObject private var editor = CustomTextEditorController()
     
+    @State var editorText: String = ""
+    
     
     var body: some View {
         VStack{
@@ -41,9 +43,33 @@ struct TestTextEditorView: View {
                 Spacer()
                 
                 Button{
-                    logger.d("Image Button")
+                    logger.d("import Btn \(editorText)")
+                    if let tv = editor.textView {
+                        editor.importTokenText(editorText, into: tv, controller: editor, baseFont: tv.font ?? .systemFont(ofSize: 18))
+                    }
+                    
+                    logger.d("import clear")
+                    
                 }label: {
                     Image(systemName: "photo")
+                }
+                .foregroundStyle(.black)
+                
+                Spacer()
+                
+                Button{
+                    
+                     let out: String = {
+                       guard let tv = editor.textView else { return "" }
+                         return editor.exportTokenText(from: tv)
+                     }()
+                    
+                    logger.d("export Btn \(out)")
+                    
+                    editorText = out
+                    
+                }label: {
+                    Image(systemName: "figure")
                 }
                 .foregroundStyle(.black)
                 

@@ -80,13 +80,14 @@ final class CustomTextEditorController: ObservableObject {
                 }()
 
                 listAtt.kind = newKind
-                if let img = assetImage(for: newKind) {
-                    listAtt.image  = img
-                    listAtt.bounds = fixedBounds(for: newKind, font: f)
-                } else {
-                    listAtt.image  = imageForSFSymbol(kind: newKind, font: f)
-                    listAtt.bounds = CGRect(x: 0, y: f.descender, width: f.lineHeight, height: f.lineHeight)
-                }
+                configureAttachment(listAtt, for: newKind, font: f)
+//                if let img = assetImage(for: newKind) {
+//                    listAtt.image  = img
+//                    listAtt.bounds = fixedBounds(for: newKind, font: f)
+//                } else {
+//                    listAtt.image  = imageForSFSymbol(kind: newKind, font: f)
+//                    listAtt.bounds = CGRect(x: 0, y: f.descender, width: f.lineHeight, height: f.lineHeight)
+//                }
 
                 // 첨부 한 글자만 교체, 뒤의 공백은 유지
                 ms.beginEditing()
@@ -130,14 +131,16 @@ final class CustomTextEditorController: ObservableObject {
         let at = ListAttachment()   // 첨부 인스턴스 생성
         at.kind = kind              // 타입 기록(토글/변경시 활용)
         
-        if let img = assetImage(for: kind) {
-            at.image  = img
-            at.bounds = fixedBounds(for: kind, font: font)
-        } else {
-            // 에셋이 없을 때 안전하게 SF 심볼로 폴백
-            at.image  = imageForSFSymbol(kind: kind, font: font)
-            at.bounds = CGRect(x: 0, y: font.descender, width: font.lineHeight, height: font.lineHeight)
-        }
+        configureAttachment(at, for: kind, font: font)
+//
+//        if let img = assetImage(for: kind) {
+//            at.image  = img
+//            at.bounds = fixedBounds(for: kind, font: font)
+//        } else {
+//            // 에셋이 없을 때 안전하게 SF 심볼로 폴백
+//            at.image  = imageForSFSymbol(kind: kind, font: font)
+//            at.bounds = CGRect(x: 0, y: font.descender, width: font.lineHeight, height: font.lineHeight)
+//        }
         
         return at
     }
@@ -165,20 +168,87 @@ final class CustomTextEditorController: ObservableObject {
             return UIImage(named: isDone ? "checked" : "uncheck")
         }
     }
+    
+    // 유효한 수치 보정
+    private func finite(_ v: CGFloat, fallback: CGFloat) -> CGFloat {
+        if v.isFinite { return v }
+        return fallback
+    }
+    private func clamp(_ v: CGFloat, min minV: CGFloat, max maxV: CGFloat) -> CGFloat {
+        return max(minV, min(v, maxV))
+    }
+    
+    // controller 내부
+    func configureAttachment(_ att: ListAttachment, for kind: ListAttachment.Kind, font: UIFont) {
+        att.kind = kind
+
+        // 이미지: 에셋 → 없으면 심볼 폴백
+        let img = assetImage(for: kind) ?? imageForSFSymbol(kind: kind, font: font)
+        att.image = img
+
+        // bounds: 고정 크기(fixedBounds) 사용 + 유효성 보정
+        var b = fixedBounds(for: kind, font: font)
+        if !b.origin.x.isFinite || !b.origin.y.isFinite { b.origin = .zero }
+        if !b.size.width.isFinite || b.size.width <= 0 { b.size.width = 16 }
+        if !b.size.height.isFinite || b.size.height <= 0 { b.size.height = 16 }
+        att.bounds = b
+    }
+    
+    func sanitizeAttachments(in tv: UITextView, baseFont: UIFont) {
+        let full = NSRange(location: 0, length: tv.textStorage.length)
+        tv.textStorage.enumerateAttribute(.attachment, in: full) { value, range, _ in
+            guard let att = value as? ListAttachment else { return }
+
+            // 이미지 없거나 bounds 비정상이면 재설정
+            var needsFix = false
+            if att.image == nil { needsFix = true }
+            let b = att.bounds
+            if !b.origin.y.isFinite || !b.size.width.isFinite || !b.size.height.isFinite || b.size.width <= 0 || b.size.height <= 0 {
+                needsFix = true
+            }
+            if needsFix {
+                let tmp = ListAttachment()
+                configureAttachment(tmp, for: att.kind, font: baseFont)
+                tv.textStorage.replaceCharacters(in: range, with: NSAttributedString(attachment: tmp))
+            }
+        }
+    }
+
 
     // 폰트 라인 높이에 ‘세로 가운데’ 오도록 y 오프셋 포함한 고정 크기
     func fixedBounds(for kind: ListAttachment.Kind, font: UIFont) -> CGRect {
-        let size: CGSize = {
+        // 1) 종류별 기본 크기
+        let defaultSize: CGSize = {
+            switch kind {
+            case .bullet: return .init(width: 6,  height: 6)
+            case .check:  return .init(width: 16, height: 16)
+            }
+        }()
+
+        // 2) 현재 설정값(에디터가 들고 있는 값)
+        let configuredSize: CGSize = {
             switch kind {
             case .bullet: return bulletSize
             case .check:  return checkSize
             }
         }()
 
-        // 베이스라인 기준 세로 가운데 정렬:
-        // descender는 아래로 음수, lineHeight는 전체 라인 높이
-        let y = font.descender + (font.lineHeight - size.height) / 2
-        return CGRect(x: 0, y: y, width: size.width, height: size.height)
+        // 3) 유효화: NaN/무한대/0/음수 → 기본값으로 대체
+        var w = configuredSize.width
+        var h = configuredSize.height
+        if !w.isFinite || w <= 0 { w = defaultSize.width }
+        if !h.isFinite || h <= 0 { h = defaultSize.height }
+
+        // 4) 하드 클램프 (이상치 차단)
+        w = max(0.5, min(w, 512))
+        h = max(0.5, min(h, 512))
+
+        // 5) 세로 중앙 정렬 (베이스라인 기준)
+        let line = font.lineHeight.isFinite ? font.lineHeight : 18
+        let desc = font.descender.isFinite ? font.descender : -3
+        let y = desc + (line - h) / 2
+
+        return CGRect(x: 0, y: y, width: w, height: h)
     }
     
     // 폰트 라인 높이에 맞춰 attachment 크기 계산 (가로세로 비율 유지)
@@ -222,6 +292,91 @@ final class CustomTextEditorController: ObservableObject {
             if next == " " || next == "\t" { len += 1 }  // 공백/탭이면 +1 (우리는 공백 1칸 정책)
         }
         return len // 총 마커 길이(보통 2)
+    }
+    
+    // MARK: - DB TokenText 변환
+    // UITextView(첨부 포함) → 토큰 텍스트
+    func exportTokenText(from tv: UITextView) -> String {
+        let s = tv.attributedText.string as NSString
+        var lines: [String] = []
+        var loc = 0
+        while loc <= s.length {
+            let para = s.paragraphRange(for: NSRange(location: min(loc, s.length), length: 0))
+            if para.length == 0 { break }
+
+            // 문단 시작에 첨부가 있으면 토큰으로
+            var prefix = ""
+            if let att = tv.attributedText.attribute(.attachment, at: para.location, effectiveRange: nil) as? ListAttachment {
+                switch att.kind {
+                case .bullet:                    prefix = "[Bullet] "
+                case .check(let done):           prefix = done ? "[Checked] " : "[Check] "
+                }
+            }
+
+            // 본문: (첨부 + 공백) 길이만큼 건너뛰어 추출
+            var bodyStart = para.location
+            if prefix.isEmpty == false {
+                // 첨부(1) + 공백(선택적) → 본문 시작 보정
+                bodyStart += 1
+                if bodyStart < s.length {
+                    let next = s.substring(with: NSRange(location: bodyStart, length: 1))
+                    if next == " " || next == "\t" { bodyStart += 1 }
+                }
+            }
+
+            let end = para.location + para.length
+            let bodyLen = max(0, end - bodyStart)
+            let body = bodyLen > 0 ? s.substring(with: NSRange(location: bodyStart, length: bodyLen)).trimmingCharacters(in: .newlines) : ""
+
+            lines.append(prefix + body)
+            loc = end
+            if end >= s.length { break }
+        }
+        return lines.joined(separator: "\n")
+    }
+    
+    // 토큰 텍스트 → UITextView(첨부로 렌더링)
+    func importTokenText(_ text: String,
+                         into tv: UITextView,
+                         controller: CustomTextEditorController,
+                         baseFont: UIFont)
+    {
+        let ms = NSMutableAttributedString()
+        let lines = text.components(separatedBy: .newlines)
+
+        for i in 0..<lines.count {
+            var line = lines[i]
+            var kind: ListAttachment.Kind? = nil
+
+            if line.hasPrefix("[Bullet] ") {
+                kind = .bullet
+                line.removeFirst("[Bullet] ".count)
+            } else if line.hasPrefix("[Checked] ") {
+                kind = .check(isDone: true)
+                line.removeFirst("[Checked] ".count)
+            } else if line.hasPrefix("[Check] ") {
+                kind = .check(isDone: false)
+                line.removeFirst("[Check] ".count)
+            }
+
+            if let k = kind {
+                let att = ListAttachment(); att.kind = k
+                if let img = controller.assetImage(for: k) {
+                    att.image  = img
+                    att.bounds = controller.fixedBounds(for: k, font: baseFont) // ← 고정 사이즈/정렬 적용
+                }
+                ms.append(NSAttributedString(attachment: att))
+                ms.append(NSAttributedString(string: " ", attributes: [.font: baseFont])) // 공백 1칸
+            }
+
+            ms.append(NSAttributedString(string: line, attributes: [.font: baseFont]))
+            if i < lines.count - 1 {
+                ms.append(NSAttributedString(string: "\n", attributes: [.font: baseFont]))
+            }
+        }
+
+        tv.attributedText = ms
+        tv.typingAttributes = [.font: baseFont]
     }
 }
 
