@@ -207,3 +207,50 @@ SwiftUI 래핑까지 포함하면 프로덕션 품질로 올리려면 시간이 
 
 원하시면 copy/cut 오버라이드로 토큰만 복사되게 하는 스니펫이나,
 오버레이 프로토타입을 어떻게 붙일지(업데이트 타이밍, 좌표 변환 포인트)도 정리해서 드릴게요.
+
+---
+
+### SwiftUI - TextField
+
+SwiftUI에서 TextField만 추가 후 길게 눌러서 돋보기가 나타나는 순간 아래와 같은 에러문이 로그에 나타나게 됩니다.
+
+해당 부분은 NaN 에러라고 하는데 현재로써 애플에서 고쳐줘야하는 문제로 보여집니다.
+
+도움 받은 링크
+- https://developer.apple.com/forums/thread/738726
+
+- https://www.reddit.com/r/SwiftUI/comments/1ddcit9/help_needed_swiftui_app_passing_nan_to/
+
+
+```
+Error: this application, or a library it uses, has passed an invalid numeric value (NaN, or not-a-number) to CoreGraphics API and this value is being ignored. Please fix this problem.
+Backtrace:
+  <CGPathAddLineToPoint+92>
+   <<redacted>+1336>
+    <<redacted>+188>
+     <<redacted>+344>
+      <<redacted>+1256>
+       <<redacted>+1528>
+        <<redacted>+504>
+         <<redacted>+148>
+          <<redacted>+464>
+           <<redacted>+648>
+            <<redacted>+88>
+             <<redacted>+52>
+              <<redacted>+84>
+               <<redacted>+172>
+                <<redacted>+92>
+                 <<redacted>+28>
+                  <<redacted>+176>
+                   <<redacted>+244>
+                    <<redacted>+828>
+                     <CFRunLoopRunSpecific+608>
+                      <GSEventRunModal+164>
+                       <<redacted>+888>
+                        <UIApplicationMain+340>
+                         <<redacted>+414604>
+                          <<redacted>+72024>
+                           <<redacted>+120596>
+                            <$s6iosApp6iOSAppV5$mainyyFZ+40>
+                             <__debug_main_executable_dylib_entry_point+12>                              <<redacted>+2240>
+```

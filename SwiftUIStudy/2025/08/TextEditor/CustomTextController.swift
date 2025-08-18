@@ -81,13 +81,6 @@ final class CustomTextEditorController: ObservableObject {
 
                 listAtt.kind = newKind
                 configureAttachment(listAtt, for: newKind, font: f)
-//                if let img = assetImage(for: newKind) {
-//                    listAtt.image  = img
-//                    listAtt.bounds = fixedBounds(for: newKind, font: f)
-//                } else {
-//                    listAtt.image  = imageForSFSymbol(kind: newKind, font: f)
-//                    listAtt.bounds = CGRect(x: 0, y: f.descender, width: f.lineHeight, height: f.lineHeight)
-//                }
 
                 // 첨부 한 글자만 교체, 뒤의 공백은 유지
                 ms.beginEditing()
