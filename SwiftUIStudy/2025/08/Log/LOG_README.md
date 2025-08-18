@@ -77,5 +77,24 @@ logger.logLevel = .info
 로그 필터링: 로그 레벨을 통해 어떤 로그를 출력할지 쉽게 조정할 수 있습니다.
 
 이 클래스를 사용하여 애플리케이션의 로깅을 효율적으로 관리하고, 필요에 따라 로그 출력을 제어할 수 있습니다.
-sss
-ssss
+
+---
+
+## NSLog / Print
+
+- Print : 개발 중 간단하게 log를 볼 수 있습니다.
+- NSLog : Release 이후에도 window > device console 에서 확인이 가능합니다.
+
+(하단) Debug 콘솔
+Xcode에서 앱을 Run/Attach 해서 디버거가 프로세스에 연결된 동안 보이는 창입니다.
+
+→ print(), NSLog, os_log 모두 실시간으로 보입니다(stdout/stderr 포함).
+
+(Window > Devices and Simulators) Device Console
+연결된 기기의 통합 로그 스트림입니다(운영체제의 Unified Logging).
+
+→ os_log/NSLog는 잘 보이지만, print()는 보장되지 않습니다. 디버거가 붙어있지 않으면 print()가 이 창에 안 뜨는 경우가 흔합니다.
+
+Report Navigator(⌘9) > Run/Test Logs
+
+Xcode로 실행했던 세션의 기록된 로그. 디버거가 붙어 있었던 실행의 print()는 여기서도 확인 가능.
