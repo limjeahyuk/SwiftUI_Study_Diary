@@ -98,3 +98,9 @@ Xcode에서 앱을 Run/Attach 해서 디버거가 프로세스에 연결된 동�
 Report Navigator(⌘9) > Run/Test Logs
 
 Xcode로 실행했던 세션의 기록된 로그. 디버거가 붙어 있었던 실행의 print()는 여기서도 확인 가능.
+
+
+
+---
+
+dd
