@@ -58,3 +58,35 @@ ex) 어떤 행동의 업데이트 성공 여부? / 리턴 값을 이용해서 �
 a 값을 Optional로 받되 안 받았을때는 그냥 함수 false로 되도록 할때,
 
 이렇게 하지 않으면 함수를 사용하는 측에서 분기를 쳐줘야하는데 그때마다 하는게 여간 귀찮은 것이 아닙니다.
+
+
+---
+## DATE
+
+```
+    let ud = UserDefaults.standard
+    let cal = Calendar(identifier: .iso8601)
+    
+    private func isSameDay(_ a: Date?, _ b: Date) -> Bool {
+        guard let a else { return false }
+        return cal.isDate(a, inSameDayAs: b)
+    }
+    
+    private func isSameWeek(_ a: Date?, _ b: Date) -> Bool {
+        guard let a else { return false }
+        let ca = cal.dateComponents([.weekOfYear, .yearForWeekOfYear], from: a)
+        let cb = cal.dateComponents([.weekOfYear, .yearForWeekOfYear], from: b)
+        return ca.weekOfYear == cb.weekOfYear && ca.yearForWeekOfYear == cb.yearForWeekOfYear
+    }
+    
+    private func isSameMonth(_ a: Date?, _ b: Date) -> Bool {
+        guard let a else { return false }
+        let ca = cal.dateComponents([.year, .month], from: a)
+        let cb = cal.dateComponents([.year, .month], from: b)
+        return ca.year == cb.year && ca.month == cb.month
+    }
+
+```
+
+calendar를 이용해서 날짜가 같은 날짜인지 다른 날짜인지 확인이 가능합니다.
+
