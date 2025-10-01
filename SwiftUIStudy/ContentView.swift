@@ -23,6 +23,11 @@ struct ContentView: View {
                     } label: {
                         Text("8M 2W")
                     }
+                    Button {
+                        router.push(.codeTest)
+                    } label: {
+                        Text("10M")
+                    }
                 }
                 .foregroundStyle(.black)
             }
@@ -30,6 +35,8 @@ struct ContentView: View {
                 switch route {
                 case .textEditor:
                     TestTextEditorView()
+                case .codeTest:
+                    codeTest()
                 }
                 
             }
