@@ -28,8 +28,13 @@ struct ContentView: View {
                     } label: {
                         Text("10M")
                     }
+                    Button {
+                        router.push(.DP)
+                    } label: {
+                        Text("Dynamic Programming")
+                    }
                 }
-                .foregroundStyle(.black)
+                .foregroundStyle(.white)
             }
             .navigationDestination(for: AppRoute.self) { route in
                 switch route {
@@ -37,6 +42,8 @@ struct ContentView: View {
                     TestTextEditorView()
                 case .codeTest:
                     codeTest()
+                case .DP:
+                    DynamicProgramming()
                 }
                 
             }

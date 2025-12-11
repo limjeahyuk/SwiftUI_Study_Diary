@@ -11,6 +11,7 @@ import SwiftUI
 enum AppRoute: Hashable {
     case textEditor
     case codeTest
+    case DP
 }
 
 final class FullScreenRouter: ObservableObject {
