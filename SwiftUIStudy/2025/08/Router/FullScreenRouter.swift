@@ -12,6 +12,7 @@ enum AppRoute: Hashable {
     case textEditor
     case codeTest
     case DP
+    case ARC
 }
 
 final class FullScreenRouter: ObservableObject {

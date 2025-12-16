@@ -33,6 +33,11 @@ struct ContentView: View {
                     } label: {
                         Text("Dynamic Programming")
                     }
+                    Button {
+                        router.push(.ARC)
+                    } label: {
+                        Text("ARC Test")
+                    }
                 }
                 .foregroundStyle(.white)
             }
@@ -44,6 +49,8 @@ struct ContentView: View {
                     codeTest()
                 case .DP:
                     DynamicProgramming()
+                case .ARC:
+                    ARCTest()
                 }
                 
             }
