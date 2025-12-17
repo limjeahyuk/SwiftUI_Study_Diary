@@ -38,6 +38,12 @@ struct ContentView: View {
                     } label: {
                         Text("ARC Test")
                     }
+                    
+                    Button {
+                        router.push(.WKWebView)
+                    } label: {
+                        Text("WKWebView Test")
+                    }
                 }
                 .foregroundStyle(.white)
             }
@@ -51,6 +57,8 @@ struct ContentView: View {
                     DynamicProgramming()
                 case .ARC:
                     ARCTest()
+                case .WKWebView:
+                    WebViewTest()
                 }
                 
             }

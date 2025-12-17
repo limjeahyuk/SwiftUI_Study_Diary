@@ -13,6 +13,7 @@ enum AppRoute: Hashable {
     case codeTest
     case DP
     case ARC
+    case WKWebView
 }
 
 final class FullScreenRouter: ObservableObject {
