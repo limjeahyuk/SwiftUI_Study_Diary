@@ -24,7 +24,7 @@ struct WebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.applicationNameForUserAgent = " MyHybridApp/1.0"
+        config.applicationNameForUserAgent = " MyHybridApp/1.01111"
 
         let webView = WKWebView(frame: .zero, configuration: config)
 
