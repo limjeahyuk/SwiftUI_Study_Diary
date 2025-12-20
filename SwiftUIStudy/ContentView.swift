@@ -44,6 +44,12 @@ struct ContentView: View {
                     } label: {
                         Text("WKWebView Test")
                     }
+                    
+                    Button {
+                        router.push(.DeginPattern)
+                    } label: {
+                        Text("DeginPattern Test")
+                    }
                 }
                 .foregroundStyle(.white)
             }
@@ -59,6 +65,8 @@ struct ContentView: View {
                     ARCTest()
                 case .WKWebView:
                     WebViewTest()
+                case .DeginPattern:
+                    DeginPatternView()
                 }
                 
             }
