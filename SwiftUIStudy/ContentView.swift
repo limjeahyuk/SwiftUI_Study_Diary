@@ -50,6 +50,12 @@ struct ContentView: View {
                     } label: {
                         Text("DeginPattern Test")
                     }
+                    
+                    Button {
+                        router.push(.segment)
+                    } label: {
+                        Text("Segment Crash Test")
+                    }
                 }
                 .foregroundStyle(.white)
             }
@@ -67,6 +73,8 @@ struct ContentView: View {
                     WebViewTest()
                 case .DeginPattern:
                     DeginPatternView()
+                case .segment:
+                    SegmentationCrash()
                 }
                 
             }

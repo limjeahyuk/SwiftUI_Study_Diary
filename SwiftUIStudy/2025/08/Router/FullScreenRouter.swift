@@ -15,6 +15,7 @@ enum AppRoute: Hashable {
     case ARC
     case WKWebView
     case DeginPattern
+    case segment
 }
 
 final class FullScreenRouter: ObservableObject {
